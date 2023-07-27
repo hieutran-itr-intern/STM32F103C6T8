@@ -213,7 +213,6 @@ int main(void)
           state = IDLE;
           break;
     }
-    BT = BUTTON_STATE;
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
