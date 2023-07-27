@@ -233,7 +233,10 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+	button_interrupt = 1;
+}
 /* USER CODE END 4 */
 
 /**

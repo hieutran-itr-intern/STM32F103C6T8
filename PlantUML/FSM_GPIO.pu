@@ -1,0 +1,19 @@
+@startuml
+skinparam arrowcolor red
+skinparam stateBackgroundColor yellow  
+
+[*] --> Wait_State
+Wait_State: Wait interrupt
+Interrupt_State: Count t_hold and Check button
+Press_State: Count t_hold and Check button
+Click_State: Change LED_ON mode
+
+Wait_State --> Interrupt_State: Have interrupt
+Wait_State --> Wait_State: No interrupt
+Interrupt_State --> Press_State: t_hold > 50 ms &&\n button == PRESS
+Press_State --> Click_State: t_hold < 300 ms &&\n button == RELEASE
+Click_State --> Wait_State
+Press_State --> Hold_State: t_hold > 3000 ms &&\n button = REALEASE
+Hold_State --> Wait_State
+
+@enduml
