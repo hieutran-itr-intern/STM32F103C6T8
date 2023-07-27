@@ -63,7 +63,8 @@ my_state_t state = IDLE;
 /* USER CODE BEGIN PV */
 uint8_t id_state_LED = 0;
 uint8_t button_interrupt = 0;
-uint8_t Mode_State = 0;
+uint8_t Mode_State = 0;\
+uint32_t t_timeout = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -149,7 +150,7 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   /* USER CODE BEGIN 2 */
-
+  HAL_InitTick(TICK_INT_PRIORITY); // Reset HAL_GetTick() to 0
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -157,7 +158,35 @@ int main(void)
   while (1)
   {
     /* USER CODE END WHILE */
+    switch (state)
+    {
+      case IDLE:
+        if (button_interrupt == 1 && BUTTON_STATE == 0)
+        {
+          state = WAIT_PRESS_TIMEOUT;
+          t_timeout = HAL_GetTick() + 50;
+        }
+        break;
 
+      case WAIT_PRESS_TIMEOUT:
+        if (BUTTON_STATE == 0 && HAL_GetTick() > t_timeout)
+        {
+          state = WAIT_CLICK_TIMEOUT;
+          t_timeout = HAL_GetTick() + 250;
+        }
+        if (HAL_GetTick() <= t_timeout)
+        {
+          
+        }
+        break;
+
+      case WAIT_CLICK_TIMEOUT:
+        if (BUTTON_STATE == 1 && HAL_GetTick() < t_timeout)
+      case
+      default:
+          state = IDLE;
+          break;
+    }
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
