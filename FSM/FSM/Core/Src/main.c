@@ -27,12 +27,12 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-#define R_ON HAL_GPIO_WritePin(R_GPIO_Port, R_Pin, 0)
-#define G_ON HAL_GPIO_WritePin(G_GPIO_Port, G_Pin, 0)
-#define B_ON HAL_GPIO_WritePin(B_GPIO_Port, B_Pin, 0)
-#define R_OFF HAL_GPIO_WritePin(R_GPIO_Port, R_Pin, 1)
-#define G_OFF HAL_GPIO_WritePin(G_GPIO_Port, G_Pin, 1)
-#define B_OFF HAL_GPIO_WritePin(B_GPIO_Port, B_Pin, 1)
+#define R_ON HAL_GPIO_WritePin(R_GPIO_Port, R_Pin, 1)
+#define G_ON HAL_GPIO_WritePin(G_GPIO_Port, G_Pin, 1)
+#define B_ON HAL_GPIO_WritePin(B_GPIO_Port, B_Pin, 1)
+#define R_OFF HAL_GPIO_WritePin(R_GPIO_Port, R_Pin, 0)
+#define G_OFF HAL_GPIO_WritePin(G_GPIO_Port, G_Pin, 0)
+#define B_OFF HAL_GPIO_WritePin(B_GPIO_Port, B_Pin, 0)
 #define BUTTON_STATE HAL_GPIO_ReadPin(BUTTON_GPIO_Port, BUTTON_Pin)
 #define DEBOUNCE_TIME 50
 #define PRESS 0
@@ -63,7 +63,9 @@ my_state_t state = IDLE;
 /* USER CODE BEGIN PV */
 uint8_t id_state_LED = 0;
 uint8_t button_interrupt = 0;
-uint8_t Mode_State = 0;
+uint8_t Mode_State = 0;\
+uint32_t t_timeout = 0;
+uint8_t BT;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -149,7 +151,7 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   /* USER CODE BEGIN 2 */
-
+  HAL_InitTick(TICK_INT_PRIORITY); // Reset HAL_GetTick() to 0
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -157,7 +159,60 @@ int main(void)
   while (1)
   {
     /* USER CODE END WHILE */
+    switch (state)
+    {
+      case IDLE:
+        if (button_interrupt == 1 && BUTTON_STATE == 0)
+        {
+          state = WAIT_PRESS_TIMEOUT;
+          t_timeout = HAL_GetTick() + 50;
+        }
+        break;
 
+      case WAIT_PRESS_TIMEOUT:
+        if (BUTTON_STATE == 0 && HAL_GetTick() > t_timeout)
+        {
+          state = WAIT_CLICK_TIMEOUT;
+          t_timeout = HAL_GetTick() + 250;
+        }
+        if (BUTTON_STATE == 1 && HAL_GetTick() <= t_timeout)
+        {
+          state = IDLE;
+          button_interrupt = 0;
+        }
+        break;
+
+      case WAIT_CLICK_TIMEOUT:
+        if (BUTTON_STATE == 1 && HAL_GetTick() <= t_timeout)
+        {
+          id_state_LED++;
+          if (id_state_LED > 3) id_state_LED = 1;
+          state_run(id_state_LED);
+          state = IDLE;
+          button_interrupt = 0;
+        }
+
+        if (BUTTON_STATE == 0 && HAL_GetTick() > t_timeout)
+        {
+          state = WAIT_HOLD_TIMEOUT;
+          t_timeout = HAL_GetTick() + 2700;
+        }
+        break;
+
+      case WAIT_HOLD_TIMEOUT:
+        if (BUTTON_STATE == 0 && HAL_GetTick() > t_timeout)
+        {
+          if (id_state_LED != 0) id_state_LED = 0;
+          state_run(id_state_LED);
+          state = IDLE;
+          button_interrupt = 0;
+        }
+        break;
+
+      default:
+          state = IDLE;
+          break;
+    }
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
@@ -211,10 +266,10 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOA_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, R_Pin|B_Pin|RA3_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOA, G_Pin|B_Pin|R_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pins : R_Pin B_Pin RA3_Pin */
-  GPIO_InitStruct.Pin = R_Pin|B_Pin|RA3_Pin;
+  /*Configure GPIO pins : G_Pin B_Pin R_Pin */
+  GPIO_InitStruct.Pin = G_Pin|B_Pin|R_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_PULLDOWN;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -233,7 +288,10 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+	button_interrupt = 1;
+}
 /* USER CODE END 4 */
 
 /**
