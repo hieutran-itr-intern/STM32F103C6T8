@@ -27,12 +27,12 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-#define R_ON HAL_GPIO_WritePin(R_GPIO_Port, R_Pin, 0)
-#define G_ON HAL_GPIO_WritePin(G_GPIO_Port, G_Pin, 0)
-#define B_ON HAL_GPIO_WritePin(B_GPIO_Port, B_Pin, 0)
-#define R_OFF HAL_GPIO_WritePin(R_GPIO_Port, R_Pin, 1)
-#define G_OFF HAL_GPIO_WritePin(G_GPIO_Port, G_Pin, 1)
-#define B_OFF HAL_GPIO_WritePin(B_GPIO_Port, B_Pin, 1)
+#define R_ON HAL_GPIO_WritePin(R_GPIO_Port, R_Pin, 1)
+#define G_ON HAL_GPIO_WritePin(G_GPIO_Port, G_Pin, 1)
+#define B_ON HAL_GPIO_WritePin(B_GPIO_Port, B_Pin, 1)
+#define R_OFF HAL_GPIO_WritePin(R_GPIO_Port, R_Pin, 0)
+#define G_OFF HAL_GPIO_WritePin(G_GPIO_Port, G_Pin, 0)
+#define B_OFF HAL_GPIO_WritePin(B_GPIO_Port, B_Pin, 0)
 #define BUTTON_STATE HAL_GPIO_ReadPin(BUTTON_GPIO_Port, BUTTON_Pin)
 #define DEBOUNCE_TIME 50
 #define PRESS 0
@@ -65,6 +65,7 @@ uint8_t id_state_LED = 0;
 uint8_t button_interrupt = 0;
 uint8_t Mode_State = 0;\
 uint32_t t_timeout = 0;
+uint8_t BT;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -174,19 +175,45 @@ int main(void)
           state = WAIT_CLICK_TIMEOUT;
           t_timeout = HAL_GetTick() + 250;
         }
-        if (HAL_GetTick() <= t_timeout)
+        if (BUTTON_STATE == 1 && HAL_GetTick() <= t_timeout)
         {
-          
+          state = IDLE;
+          button_interrupt = 0;
         }
         break;
 
       case WAIT_CLICK_TIMEOUT:
-        if (BUTTON_STATE == 1 && HAL_GetTick() < t_timeout)
-      case
+        if (BUTTON_STATE == 1 && HAL_GetTick() <= t_timeout)
+        {
+          id_state_LED++;
+          if (id_state_LED > 3) id_state_LED = 1;
+          state_run(id_state_LED);
+          state = IDLE;
+          button_interrupt = 0;
+        }
+
+        if (BUTTON_STATE == 0 && HAL_GetTick() > t_timeout)
+        {
+          state = WAIT_HOLD_TIMEOUT;
+          t_timeout = HAL_GetTick() + 2700;
+        }
+        break;
+
+      case WAIT_HOLD_TIMEOUT:
+        if (BUTTON_STATE == 0 && HAL_GetTick() > t_timeout)
+        {
+          if (id_state_LED != 0) id_state_LED = 0;
+          state_run(id_state_LED);
+          state = IDLE;
+          button_interrupt = 0;
+        }
+        break;
+
       default:
           state = IDLE;
           break;
     }
+    BT = BUTTON_STATE;
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */

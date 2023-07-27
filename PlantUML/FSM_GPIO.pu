@@ -4,20 +4,16 @@ skinparam stateBackgroundColor yellow
 
 [*] --> IDLE
 IDLE: Wait button press
-WAIT_BUTTON_UP: Wait button from 1 to 0\nStart t_hold
-WAIT_PRESS_TIMEOUT: Wait t_hold > 50ms
-WAIT_CLICK_TIMEOUT: Wait button from 0 to 1 &&\n t_hold < 300ms
-WAIT_HOLD_TIMEOUT: Wait button from 0 to 1 &&\n t_hold < 3000ms
-
-IDLE --> WAIT_BUTTON_UP: Button from\n 1 to 0
-WAIT_BUTTON_UP --> WAIT_PRESS_TIMEOUT: t_hold > 50ms
-WAIT_PRESS_TIMEOUT --> WAIT_CLICK_TIMEOUT: Button from 0 to 1 &&\n t_hold < 300ms
-WAIT_CLICK_TIMEOUT --> WAIT_HOLD_TIMEOUT: Button from 0 to 1 &&\n t_hold < 3000ms
+WAIT_CLICK_TIMEOUT:
+WAIT_HOLD_TIMEOUT:
+IDLE --> WAIT_PRESS_TIMEOUT: Button == 0 / Start t_hold
+WAIT_PRESS_TIMEOUT --> WAIT_CLICK_TIMEOUT: Button == 1 &&\n 50ms < t_hold
+WAIT_CLICK_TIMEOUT --> WAIT_HOLD_TIMEOUT: Button == 1 &&\n 300 < t_hold
 
 IDLE --> IDLE: if nothing\n happen
-WAIT_PRESS_TIMEOUT --> IDLE: t_hold <= 50ms
-WAIT_CLICK_TIMEOUT --> IDLE: t_hold < 300ms\n / state_run(++id_state)
-WAIT_HOLD_TIMEOUT --> IDLE: state_run(0) 
+WAIT_PRESS_TIMEOUT --> IDLE: Button == 1 &&\nt_hold <= 50ms
+WAIT_CLICK_TIMEOUT --> IDLE: Button == 1 &&\n t_hold <= 300ms / state_run(++id_state)
+WAIT_HOLD_TIMEOUT --> IDLE: Button == 1 &&\n t_hold >= 3000ms / / state_run(0) 
 
 
 @enduml
