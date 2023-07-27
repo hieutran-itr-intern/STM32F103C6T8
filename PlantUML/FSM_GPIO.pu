@@ -2,18 +2,28 @@
 skinparam arrowcolor red
 skinparam stateBackgroundColor yellow  
 
-[*] --> Wait_State
-Wait_State: Wait interrupt
-Interrupt_State: Count t_hold and Check button
-Press_State: Count t_hold and Check button
-Click_State: Change LED_ON mode
+[*] --> IDLE
+IDLE: Wait button press
+WAIT_BUTTON_UP: Wait button from 1 to 0\nStart t_hold
+WAIT_PRESS_TIMEOUT: Wait t_hold > 50ms
+WAIT_CLICK_TIMEOUT: Wait button from 0 to 1 &&\n t_hold < 300ms
+WAIT_HOLD_TIMEOUT: Wait button from 0 to 1 &&\n t_hold < 3000ms
 
-Wait_State --> Interrupt_State: Have interrupt
-Wait_State --> Wait_State: No interrupt
-Interrupt_State --> Press_State: t_hold > 50 ms &&\n button == PRESS
-Press_State --> Click_State: t_hold < 300 ms &&\n button == RELEASE
-Click_State --> Wait_State
-Press_State --> Hold_State: t_hold > 3000 ms &&\n button = REALEASE
-Hold_State --> Wait_State
+IDLE --> WAIT_BUTTON_UP: Button from\n 1 to 0
+WAIT_BUTTON_UP --> WAIT_PRESS_TIMEOUT: t_hold > 50ms
+WAIT_PRESS_TIMEOUT --> WAIT_CLICK_TIMEOUT: Button from 0 to 1 &&\n t_hold < 300ms
+WAIT_CLICK_TIMEOUT --> WAIT_HOLD_TIMEOUT: Button from 0 to 1 &&\n t_hold < 3000ms
+
+IDLE --> IDLE: if nothing\n happen
+WAIT_PRESS_TIMEOUT --> IDLE: t_hold <= 50ms
+WAIT_CLICK_TIMEOUT --> IDLE: t_hold < 300ms\n / state_run(++id_state)
+WAIT_HOLD_TIMEOUT --> IDLE: state_run(0) 
+
 
 @enduml
+
+	/*IDLE = 0,
+	WAIT_BUTTON_UP,
+	WAIT_PRESS_TIMEOUT,
+	WAIT_CLICK_TIMEOUT,
+	WAIT_HOLD_TIMEOUT*/
