@@ -185,8 +185,11 @@ int main(void)
       case WAIT_CLICK_TIMEOUT:
         if (BUTTON_STATE == 1 && HAL_GetTick() <= t_timeout)
         {
-          id_state_LED++;
-          if (id_state_LED > 3) id_state_LED = 1;
+          if (id_state_LED != 0)
+          {
+            id_state_LED++;
+            if (id_state_LED > 3) id_state_LED = 1;
+          }
           state_run(id_state_LED);
           state = IDLE;
           button_interrupt = 0;
@@ -203,6 +206,7 @@ int main(void)
         if (BUTTON_STATE == 0 && HAL_GetTick() > t_timeout)
         {
           if (id_state_LED != 0) id_state_LED = 0;
+          else id_state_LED = 1;
           state_run(id_state_LED);
           state = IDLE;
           button_interrupt = 0;
