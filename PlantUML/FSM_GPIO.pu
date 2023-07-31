@@ -1,4 +1,4 @@
-@startuml
+@startuml 
 skinparam arrowcolor red
 skinparam stateBackgroundColor yellow  
 
@@ -17,9 +17,3 @@ WAIT_HOLD_TIMEOUT --> IDLE: Button == 0 &&\n t_hold >= 3000ms / / state_run(0)
 
 
 @enduml
-
-	/*IDLE = 0,
-	WAIT_BUTTON_UP,
-	WAIT_PRESS_TIMEOUT,
-	WAIT_CLICK_TIMEOUT,
-	WAIT_HOLD_TIMEOUT*/

@@ -146,8 +146,8 @@ int main(void)
   MX_GPIO_Init();
   MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
-  HAL_TIM_Base_Start_IT(&htim2);
-  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
+
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
