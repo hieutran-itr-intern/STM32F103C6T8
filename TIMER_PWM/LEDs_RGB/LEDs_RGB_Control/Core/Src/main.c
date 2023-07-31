@@ -19,6 +19,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "stdint.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -36,6 +37,22 @@
 
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
+typedef struct 
+{
+  uint8_t bright;
+  uint8_t freq;
+  uint32_t channel_pwm;
+} LED_t;
+
+typedef struct 
+{
+  uint8_t bright;
+  uint8_t freq;
+  uint32_t channel_pwm;
+} RGB_t;
+
+RGB_t r, g, b;
+LED_t Led1, Led2, Led3;
 
 /* USER CODE END PM */
 
@@ -44,7 +61,29 @@ TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim3;
 
 /* USER CODE BEGIN PV */
+void Init_LED(LED_t LED, uint8_t bright, uint8_t freq, uint32_t channel_pwm)
+{
+  LED.channel_pwm = channel_pwm;
+  LED.bright = bright;
+  LED.freq = freq;
+}
 
+void Init_RGB(RGB_t RGB, uint8_t bright, uint8_t freq, uint32_t channel_pwm)
+{
+  RGB.channel_pwm = channel_pwm;
+  RGB.bright = bright;
+  RGB.freq = freq;
+}
+
+void Change_bright_LED(LED_t LED, uint8_t bright)
+{
+  __HAL_TIM_SET_COMPARE(&htim3, LED.channel_pwm, bright*79/100);
+}
+
+void Change_bright_RGB(RGB_t LED, uint8_t bright)
+{
+  __HAL_TIM_SET_COMPARE(&htim2, RGB.channel_pwm, bright*79/100);
+}
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -92,7 +131,26 @@ int main(void)
   MX_TIM2_Init();
   MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
+  HAL_TIM_Base_Start_IT(&htim2);
+  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2);
+  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_3);
+  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_4);
+  __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, 79);
+  __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_3, 79);
+  __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_4, 79);
 
+  HAL_TIM_Base_Start_IT(&htim3);
+  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);
+  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_3);
+  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_4);
+
+  Init_LED(Led1, 100, 0, TIM_CHANNEL_2);
+  Init_LED(Led2, 100, 0, TIM_CHANNEL_3);
+  Init_LED(Led3, 100, 0, TIM_CHANNEL_4);
+
+  Init_RGB(r, 100, 0, TIM_CHANNEL_2);
+  Init_RGB(g, 100, 0, TIM_CHANNEL_3);
+  Init_RGB(b, 100, 0, TIM_CHANNEL_4);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -161,11 +219,11 @@ static void MX_TIM2_Init(void)
 
   /* USER CODE END TIM2_Init 1 */
   htim2.Instance = TIM2;
-  htim2.Init.Prescaler = 0;
+  htim2.Init.Prescaler = 3999;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = 65535;
+  htim2.Init.Period = 79;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-  htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
   if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
   {
     Error_Handler();
@@ -186,7 +244,7 @@ static void MX_TIM2_Init(void)
     Error_Handler();
   }
   sConfigOC.OCMode = TIM_OCMODE_PWM1;
-  sConfigOC.Pulse = 0;
+  sConfigOC.Pulse = 19;
   sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
   sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
   if (HAL_TIM_PWM_ConfigChannel(&htim2, &sConfigOC, TIM_CHANNEL_2) != HAL_OK)
@@ -228,11 +286,11 @@ static void MX_TIM3_Init(void)
 
   /* USER CODE END TIM3_Init 1 */
   htim3.Instance = TIM3;
-  htim3.Init.Prescaler = 0;
+  htim3.Init.Prescaler = 3999;
   htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim3.Init.Period = 65535;
+  htim3.Init.Period = 79;
   htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-  htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
   if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
   {
     Error_Handler();
@@ -253,7 +311,7 @@ static void MX_TIM3_Init(void)
     Error_Handler();
   }
   sConfigOC.OCMode = TIM_OCMODE_PWM1;
-  sConfigOC.Pulse = 0;
+  sConfigOC.Pulse = 19;
   sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
   sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
   if (HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_2) != HAL_OK)
