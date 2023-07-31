@@ -27,26 +27,7 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-#define R_ON HAL_GPIO_WritePin(R_GPIO_Port, R_Pin, 1)
-#define G_ON HAL_GPIO_WritePin(G_GPIO_Port, G_Pin, 1)
-#define B_ON HAL_GPIO_WritePin(B_GPIO_Port, B_Pin, 1)
-#define R_OFF HAL_GPIO_WritePin(R_GPIO_Port, R_Pin, 0)
-#define G_OFF HAL_GPIO_WritePin(G_GPIO_Port, G_Pin, 0)
-#define B_OFF HAL_GPIO_WritePin(B_GPIO_Port, B_Pin, 0)
-#define BUTTON_STATE HAL_GPIO_ReadPin(BUTTON_GPIO_Port, BUTTON_Pin)
-#define DEBOUNCE_TIME 50
-#define PRESS 0
-#define RELEASE 1
-typedef enum
-{
-	IDLE = 0,
-	WAIT_BUTTON_UP,
-	WAIT_PRESS_TIMEOUT,
-	WAIT_CLICK_TIMEOUT,
-	WAIT_HOLD_TIMEOUT
-} my_state_t;
 
-my_state_t state = IDLE;
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -60,60 +41,24 @@ my_state_t state = IDLE;
 
 /* Private variables ---------------------------------------------------------*/
 TIM_HandleTypeDef htim2;
+TIM_HandleTypeDef htim3;
 
 /* USER CODE BEGIN PV */
-uint8_t id_state_LED = 0;
-uint8_t button_interrupt = 0;
-uint8_t Mode_State = 0;\
-uint32_t t_timeout = 0;
-uint8_t BT;
-uint8_t Percent_PWM = 0;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_TIM2_Init(void);
+static void MX_TIM3_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
-{
-  /* Prevent unused argument(s) compilation warning */
-  UNUSED(htim);
-  if (id_state_LED == 1)
-  {
-	  HAL_GPIO_TogglePin(R_GPIO_Port, R_Pin);
-	  G_OFF; B_OFF;
-  }
 
-  if (id_state_LED == 2)
-    {
-  	  HAL_GPIO_TogglePin(G_GPIO_Port, G_Pin);
-  	  R_OFF; B_OFF;
-    }
-
-  if (id_state_LED == 3)
-      {
-    	  HAL_GPIO_TogglePin(B_GPIO_Port, B_Pin);
-    	  G_OFF; R_OFF;
-      }
-  if (id_state_LED == 0)
-  	  {
-	  	  R_OFF; G_OFF; B_OFF;
-  	  }
-  /* NOTE : This function should not be modified, when the callback is needed,
-            the HAL_TIM_PeriodElapsedCallback could be implemented in the user file
-   */
-}
-
-uint32_t duty_PWM(uint8_t Percent)
-{
-	return Percent*399/100;
-}
 /* USER CODE END 0 */
 
 /**
@@ -132,7 +77,7 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
-  HAL_InitTick(TICK_INT_PRIORITY); // Reset HAL_GetTick() to 0
+
   /* USER CODE END Init */
 
   /* Configure the system clock */
@@ -145,9 +90,9 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_TIM2_Init();
+  MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
-  HAL_TIM_Base_Start_IT(&htim2);
-  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -155,62 +100,7 @@ int main(void)
   while (1)
   {
     /* USER CODE END WHILE */
-	  switch (state)
-	  	      {
-	  	        case IDLE:
-	  	          if (button_interrupt == 1 && BUTTON_STATE == 0)
-	  	          {
-	  	            state = WAIT_PRESS_TIMEOUT;
-	  	            t_timeout = HAL_GetTick() + 50;
-	  	          }
-	  	          break;
 
-	  	        case WAIT_PRESS_TIMEOUT:
-	  	          if (BUTTON_STATE == 0 && HAL_GetTick() > t_timeout)
-	  	          {
-	  	            state = WAIT_CLICK_TIMEOUT;
-	  	            t_timeout = HAL_GetTick() + 250;
-	  	          }
-	  	          if (BUTTON_STATE == 1 && HAL_GetTick() <= t_timeout)
-	  	          {
-	  	            state = IDLE;
-	  	            button_interrupt = 0;
-	  	          }
-	  	          break;
-
-	  	        case WAIT_CLICK_TIMEOUT:
-	  	          if (BUTTON_STATE == 1 && HAL_GetTick() <= t_timeout)
-	  	          {
-	  	            if (id_state_LED != 0)
-	  	            {
-	  	              id_state_LED++;
-	  	              if (id_state_LED > 3) id_state_LED = 1;
-	  	            }
-	  	            state = IDLE;
-	  	            button_interrupt = 0;
-	  	          }
-
-	  	          if (BUTTON_STATE == 0 && HAL_GetTick() > t_timeout)
-	  	          {
-	  	            state = WAIT_HOLD_TIMEOUT;
-	  	            t_timeout = HAL_GetTick() + 2700;
-	  	          }
-	  	          break;
-
-	  	        case WAIT_HOLD_TIMEOUT:
-	  	          if (BUTTON_STATE == 0 && HAL_GetTick() > t_timeout)
-	  	          {
-	  	            if (id_state_LED != 0) id_state_LED = 0;
-	  	            else id_state_LED = 1;
-	  	            state = IDLE;
-	  	            button_interrupt = 0;
-	  	          }
-	  	          break;
-
-	  	        default:
-	  	            state = IDLE;
-	  	            break;
-	  	      }
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
@@ -271,11 +161,11 @@ static void MX_TIM2_Init(void)
 
   /* USER CODE END TIM2_Init 1 */
   htim2.Instance = TIM2;
-  htim2.Init.Prescaler = 199;
+  htim2.Init.Prescaler = 0;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = 399;
+  htim2.Init.Period = 65535;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-  htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
+  htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
   {
     Error_Handler();
@@ -296,10 +186,18 @@ static void MX_TIM2_Init(void)
     Error_Handler();
   }
   sConfigOC.OCMode = TIM_OCMODE_PWM1;
-  sConfigOC.Pulse = 199;
+  sConfigOC.Pulse = 0;
   sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
   sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
-  if (HAL_TIM_PWM_ConfigChannel(&htim2, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
+  if (HAL_TIM_PWM_ConfigChannel(&htim2, &sConfigOC, TIM_CHANNEL_2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_TIM_PWM_ConfigChannel(&htim2, &sConfigOC, TIM_CHANNEL_3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_TIM_PWM_ConfigChannel(&htim2, &sConfigOC, TIM_CHANNEL_4) != HAL_OK)
   {
     Error_Handler();
   }
@@ -307,6 +205,73 @@ static void MX_TIM2_Init(void)
 
   /* USER CODE END TIM2_Init 2 */
   HAL_TIM_MspPostInit(&htim2);
+
+}
+
+/**
+  * @brief TIM3 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM3_Init(void)
+{
+
+  /* USER CODE BEGIN TIM3_Init 0 */
+
+  /* USER CODE END TIM3_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+  TIM_OC_InitTypeDef sConfigOC = {0};
+
+  /* USER CODE BEGIN TIM3_Init 1 */
+
+  /* USER CODE END TIM3_Init 1 */
+  htim3.Instance = TIM3;
+  htim3.Init.Prescaler = 0;
+  htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim3.Init.Period = 65535;
+  htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim3, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_TIM_PWM_Init(&htim3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim3, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sConfigOC.OCMode = TIM_OCMODE_PWM1;
+  sConfigOC.Pulse = 0;
+  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+  if (HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_4) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM3_Init 2 */
+
+  /* USER CODE END TIM3_Init 2 */
+  HAL_TIM_MspPostInit(&htim3);
 
 }
 
@@ -321,16 +286,7 @@ static void MX_GPIO_Init(void)
 
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOA_CLK_ENABLE();
-
-  /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, G_Pin|B_Pin|R_Pin, GPIO_PIN_RESET);
-
-  /*Configure GPIO pins : G_Pin B_Pin R_Pin */
-  GPIO_InitStruct.Pin = G_Pin|B_Pin|R_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+  __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin : BUTTON_Pin */
   GPIO_InitStruct.Pin = BUTTON_Pin;
@@ -339,16 +295,13 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_Init(BUTTON_GPIO_Port, &GPIO_InitStruct);
 
   /* EXTI interrupt init*/
-  HAL_NVIC_SetPriority(EXTI9_5_IRQn, 1, 0);
+  HAL_NVIC_SetPriority(EXTI9_5_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
 
 }
 
 /* USER CODE BEGIN 4 */
-void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
-{
-	button_interrupt = 1;
-}
+
 /* USER CODE END 4 */
 
 /**
