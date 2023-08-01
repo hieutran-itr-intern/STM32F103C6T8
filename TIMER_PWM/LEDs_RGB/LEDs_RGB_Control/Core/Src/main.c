@@ -19,7 +19,6 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "stdint.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -37,53 +36,20 @@
 
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
-typedef struct 
-{
-  uint8_t bright;
-  uint8_t freq;
-  uint32_t channel_pwm;
-} LED_t;
 
-typedef struct 
-{
-  uint8_t bright;
-  uint8_t freq;
-  uint32_t channel_pwm;
-} RGB_t;
-
-RGB_t r, g, b;
-LED_t Led1, Led2, Led3;
 
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+TIM_HandleTypeDef htim1;
 TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim3;
+TIM_HandleTypeDef htim4;
 
 /* USER CODE BEGIN PV */
-void Init_LED(LED_t LED, uint8_t bright, uint8_t freq, uint32_t channel_pwm)
-{
-  LED.channel_pwm = channel_pwm;
-  LED.bright = bright;
-  LED.freq = freq;
-}
 
-void Init_RGB(RGB_t RGB, uint8_t bright, uint8_t freq, uint32_t channel_pwm)
-{
-  RGB.channel_pwm = channel_pwm;
-  RGB.bright = bright;
-  RGB.freq = freq;
-}
 
-void Change_bright_LED(LED_t LED, uint8_t bright)
-{
-  __HAL_TIM_SET_COMPARE(&htim3, LED.channel_pwm, bright*79/100);
-}
 
-void Change_bright_RGB(RGB_t LED, uint8_t bright)
-{
-  __HAL_TIM_SET_COMPARE(&htim2, RGB.channel_pwm, bright*79/100);
-}
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -91,13 +57,59 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_TIM3_Init(void);
+static void MX_TIM4_Init(void);
+static void MX_TIM1_Init(void);
 /* USER CODE BEGIN PFP */
-
+uint8_t en_LED = 0;
+uint8_t i_LED = 0;
+uint8_t di_LED = 0;
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+	if (htim->Instance == TIM4)
+	{
+		en_LED =  1 - en_LED;
+	}
 
+	if (htim->Instance == TIM1)
+	{
+		if (di_LED == 0)
+		{
+			i_LED++;
+			__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_3, i_LED*79/49);
+			if (i_LED > 49) di_LED = 1;
+		}
+
+		if (di_LED == 1)
+		{
+			i_LED--;
+			__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_3, i_LED*79/49);
+			if (i_LED < 1) di_LED = 0;
+		}
+
+	}
+}
+
+void __1HZ_Timer_LED()
+{
+	 if (en_LED == 1) __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, 0);
+	 if (en_LED == 0) __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, 80);
+}
+
+void __1HZ_PWM_RGB()
+{
+	  __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, 999);
+	  __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_3, 999);
+	  __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_4, 999);
+}
+
+void __Fade_LED()
+{
+
+}
 /* USER CODE END 0 */
 
 /**
@@ -130,35 +142,44 @@ int main(void)
   MX_GPIO_Init();
   MX_TIM2_Init();
   MX_TIM3_Init();
+  MX_TIM4_Init();
+  MX_TIM1_Init();
   /* USER CODE BEGIN 2 */
+  //Turn on Timer 4 for Control LED period
   HAL_TIM_Base_Start_IT(&htim2);
+
+  //Turn on Timer 3 for LED power
+  HAL_TIM_Base_Start_IT(&htim3);
+
+  //Turn on Timer 4 for Control LED period
+  HAL_TIM_Base_Start_IT(&htim4);
+
+  //Turn on Timer 1 for Fade LED period
+  HAL_TIM_Base_Start_IT(&htim1);
+
+  //Start turn ON PWM
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2);
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_3);
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_4);
-  __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, 79);
-  __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_3, 79);
-  __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_4, 79);
 
-  HAL_TIM_Base_Start_IT(&htim3);
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_3);
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_4);
 
-  Init_LED(Led1, 100, 0, TIM_CHANNEL_2);
-  Init_LED(Led2, 100, 0, TIM_CHANNEL_3);
-  Init_LED(Led3, 100, 0, TIM_CHANNEL_4);
+  //Set start state for LED1, LED2, LED3
+  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, 80);  //OFF
+  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_3, 80);  //OFF
+  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_4, 80);  //OFF
 
-  Init_RGB(r, 100, 0, TIM_CHANNEL_2);
-  Init_RGB(g, 100, 0, TIM_CHANNEL_3);
-  Init_RGB(b, 100, 0, TIM_CHANNEL_4);
   /* USER CODE END 2 */
-
+  __HAL_TIM_SET_AUTORELOAD(&htim1, 99);
+  __HAL_TIM_SET_PRESCALER(&htim1, 999);
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
     /* USER CODE END WHILE */
-
+	  __1HZ_Timer_LED();
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
@@ -200,6 +221,52 @@ void SystemClock_Config(void)
 }
 
 /**
+  * @brief TIM1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM1_Init(void)
+{
+
+  /* USER CODE BEGIN TIM1_Init 0 */
+
+  /* USER CODE END TIM1_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+  /* USER CODE BEGIN TIM1_Init 1 */
+
+  /* USER CODE END TIM1_Init 1 */
+  htim1.Instance = TIM1;
+  htim1.Init.Prescaler = 1999;
+  htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim1.Init.Period = 99;
+  htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim1.Init.RepetitionCounter = 0;
+  htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
+  if (HAL_TIM_Base_Init(&htim1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim1, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim1, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM1_Init 2 */
+
+  /* USER CODE END TIM1_Init 2 */
+
+}
+
+/**
   * @brief TIM2 Initialization Function
   * @param None
   * @retval None
@@ -221,7 +288,7 @@ static void MX_TIM2_Init(void)
   htim2.Instance = TIM2;
   htim2.Init.Prescaler = 3999;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = 79;
+  htim2.Init.Period = 1999;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
   if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
@@ -244,7 +311,7 @@ static void MX_TIM2_Init(void)
     Error_Handler();
   }
   sConfigOC.OCMode = TIM_OCMODE_PWM1;
-  sConfigOC.Pulse = 19;
+  sConfigOC.Pulse = 999;
   sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
   sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
   if (HAL_TIM_PWM_ConfigChannel(&htim2, &sConfigOC, TIM_CHANNEL_2) != HAL_OK)
@@ -286,7 +353,7 @@ static void MX_TIM3_Init(void)
 
   /* USER CODE END TIM3_Init 1 */
   htim3.Instance = TIM3;
-  htim3.Init.Prescaler = 3999;
+  htim3.Init.Prescaler = 399;
   htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim3.Init.Period = 79;
   htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
@@ -311,7 +378,7 @@ static void MX_TIM3_Init(void)
     Error_Handler();
   }
   sConfigOC.OCMode = TIM_OCMODE_PWM1;
-  sConfigOC.Pulse = 19;
+  sConfigOC.Pulse = 39;
   sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
   sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
   if (HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_2) != HAL_OK)
@@ -330,6 +397,51 @@ static void MX_TIM3_Init(void)
 
   /* USER CODE END TIM3_Init 2 */
   HAL_TIM_MspPostInit(&htim3);
+
+}
+
+/**
+  * @brief TIM4 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM4_Init(void)
+{
+
+  /* USER CODE BEGIN TIM4_Init 0 */
+
+  /* USER CODE END TIM4_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+  /* USER CODE BEGIN TIM4_Init 1 */
+
+  /* USER CODE END TIM4_Init 1 */
+  htim4.Instance = TIM4;
+  htim4.Init.Prescaler = 3999;
+  htim4.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim4.Init.Period = 999;
+  htim4.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim4.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
+  if (HAL_TIM_Base_Init(&htim4) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim4, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim4, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM4_Init 2 */
+
+  /* USER CODE END TIM4_Init 2 */
 
 }
 
@@ -359,7 +471,10 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
 
+}
 /* USER CODE END 4 */
 
 /**
