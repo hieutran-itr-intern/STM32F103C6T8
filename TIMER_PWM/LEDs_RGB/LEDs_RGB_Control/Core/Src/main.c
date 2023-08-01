@@ -63,6 +63,8 @@ static void MX_TIM1_Init(void);
 uint8_t en_LED = 0;
 uint8_t i_LED = 0;
 uint8_t di_LED = 0;
+uint8_t en_fade_mode = 0;
+uint32_t bright = 100;
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -74,41 +76,85 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 		en_LED =  1 - en_LED;
 	}
 
-	if (htim->Instance == TIM1)
+	if (htim->Instance == TIM1 && en_fade_mode == 1)
 	{
 		if (di_LED == 0)
 		{
 			i_LED++;
-			__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_3, i_LED*79/49);
+			__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_3, i_LED*79/99);
+			  __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, i_LED*79/99);
 			if (i_LED > 49) di_LED = 1;
 		}
 
 		if (di_LED == 1)
 		{
 			i_LED--;
-			__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_3, i_LED*79/49);
+			__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_3, i_LED*79/99);
+			  __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, i_LED*79/99);
 			if (i_LED < 1) di_LED = 0;
 		}
-
 	}
 }
 
-void __1HZ_Timer_LED()
+void __1HZ_Timer_LED_Run()
 {
 	 if (en_LED == 1) __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, 0);
 	 if (en_LED == 0) __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, 80);
 }
 
-void __1HZ_PWM_RGB()
+void __1HZ_PWM_RGB_Setup()
 {
+	  __HAL_TIM_SET_AUTORELOAD(&htim2, 1999);
+	  __HAL_TIM_SET_PRESCALER(&htim2, 3999);
+
 	  __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, 999);
 	  __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_3, 999);
 	  __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_4, 999);
 }
 
-void __Fade_LED()
+void __Fade_LED_Setup()
 {
+	  __HAL_TIM_SET_AUTORELOAD(&htim1, 99);
+	  __HAL_TIM_SET_PRESCALER(&htim1, 999);
 
+	  __HAL_TIM_SET_AUTORELOAD(&htim2, 79);
+	  __HAL_TIM_SET_PRESCALER(&htim2, 399);
+
+	  en_fade_mode = 1;
+}
+
+void __RGB_PWM_Setup(uint32_t freq)
+{
+	uint32_t PSC = 3999;
+	uint32_t max_count = 8000000/(freq*(PSC + 1)) - 1;
+
+	__HAL_TIM_SET_AUTORELOAD(&htim2, max_count);
+	__HAL_TIM_SET_PRESCALER(&htim2, PSC);
+
+	__HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, max_count/2);
+	__HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_3, max_count/2);
+	__HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_4, max_count/2);
+
+}
+
+void __LED_TIMER_Setup(uint32_t freq)
+{
+	uint32_t PSC = 3999;
+	uint32_t max_count = 8000000/((freq*2)*(PSC + 1)) - 1;
+
+	__HAL_TIM_SET_AUTORELOAD(&htim4, max_count);
+	__HAL_TIM_SET_PRESCALER(&htim4, PSC);
+}
+
+void __LED_TIMER_Run(uint32_t bright)
+{
+	uint32_t PSC = 399;
+	uint32_t freq = 250;  //Hz
+	uint32_t max_count = 8000000/(freq*(PSC + 1)) - 1;
+	uint32_t bright_count = max_count*bright/100;
+
+	if (en_LED == 1) __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, max_count + 1);
+	if (en_LED == 0) __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, max_count - bright_count);
 }
 /* USER CODE END 0 */
 
@@ -171,15 +217,22 @@ int main(void)
   __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_3, 80);  //OFF
   __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_4, 80);  //OFF
 
+  //Set start state for R, G, B
+  __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, 0);  //OFF
+  __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_3, 0);  //OFF
+  __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_4, 0);  //OFF
+
   /* USER CODE END 2 */
-  __HAL_TIM_SET_AUTORELOAD(&htim1, 99);
-  __HAL_TIM_SET_PRESCALER(&htim1, 999);
+  __RGB_PWM_Setup(2);
+  __LED_TIMER_Setup(2);
+
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
     /* USER CODE END WHILE */
-	  __1HZ_Timer_LED();
+	//  __LED_TIMER_Run(bright);
+
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
@@ -473,7 +526,7 @@ static void MX_GPIO_Init(void)
 /* USER CODE BEGIN 4 */
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
-
+	bright = bright - 5;
 }
 /* USER CODE END 4 */
 
