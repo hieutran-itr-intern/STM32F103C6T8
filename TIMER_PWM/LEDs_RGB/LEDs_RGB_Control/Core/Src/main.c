@@ -27,7 +27,18 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
+#define BUTTON_STATE HAL_GPIO_ReadPin(BUTTON_GPIO_Port, BUTTON_Pin)
 
+typedef enum
+{
+	IDLE = 0,
+	WAIT_BUTTON_UP,
+	WAIT_PRESS_TIMEOUT,
+	WAIT_CLICK_TIMEOUT,
+	WAIT_HOLD_TIMEOUT
+} my_state_t;
+
+my_state_t state = IDLE;
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -65,6 +76,29 @@ uint8_t i_LED = 0;
 uint8_t di_LED = 0;
 uint8_t en_fade_mode = 0;
 uint32_t bright = 100;
+uint8_t button_interrupt = 0;
+uint32_t t_timeout = 0;
+
+uint32_t add_pointer_value = 0;
+uint32_t bright_count_R;
+uint32_t bright_count_G;
+uint32_t bright_count_B;
+
+uint8_t COLOR_TABLE[100] =
+{
+		10, 0, 0,
+		20, 35, 0,
+		40, 0, 27,
+		60, 10, 0,
+		80, 25, 0,
+		100, 0, 125,
+		120, 255, 0,
+		140, 10, 25,
+		160, 0, 0,
+		180, 25, 0,
+		200, 0, 124,
+		220, 30, 57,
+};
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -80,16 +114,16 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	{
 		if (di_LED == 0)
 		{
-			i_LED++;
-			__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_3, i_LED*79/99);
-			  __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, i_LED*79/99);
-			if (i_LED > 49) di_LED = 1;
+			//Set PWM for each R,G,B
+			__HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_4, bright_count_R);  //Red
+			__HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_3, bright_count_G);  //Green
+			__HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, bright_count_B);  //Blue
+			if (i_LED > bright_count_R) di_LED = 1;
 		}
 
 		if (di_LED == 1)
 		{
 			i_LED--;
-			__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_3, i_LED*79/99);
 			  __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, i_LED*79/99);
 			if (i_LED < 1) di_LED = 0;
 		}
@@ -155,6 +189,28 @@ void __LED_TIMER_Run(uint32_t bright)
 
 	if (en_LED == 1) __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, max_count + 1);
 	if (en_LED == 0) __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, max_count - bright_count);
+}
+
+void __RGB_Color(uint8_t *Color_Table)
+{
+	  uint32_t PSC = 99;
+	  uint32_t max_count_RGB = 8000000/(250*(PSC + 1)) - 1;
+	  bright_count_R = *Color_Table*max_count_RGB/255;
+	  bright_count_G = *(Color_Table + 1)*max_count_RGB/255;
+	  bright_count_B = *(Color_Table + 2)*max_count_RGB/255;
+
+	  //Set fade freq 80 Hz
+	  __HAL_TIM_SET_AUTORELOAD(&htim1, 99);
+	  __HAL_TIM_SET_PRESCALER(&htim1, 999);
+
+	  //Set base timer for change pwm RGB - 250 Hz
+	  __HAL_TIM_SET_AUTORELOAD(&htim2, max_count_RGB);
+	  __HAL_TIM_SET_PRESCALER(&htim2, PSC);
+
+	  //Set PWM for each R,G,B
+	  __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_4, bright_count_R);  //Red
+	  __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_3, bright_count_G);  //Green
+	  __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, bright_count_B);  //Blue
 }
 /* USER CODE END 0 */
 
@@ -223,8 +279,7 @@ int main(void)
   __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_4, 0);  //OFF
 
   /* USER CODE END 2 */
-  __RGB_PWM_Setup(2);
-  __LED_TIMER_Setup(2);
+  HAL_InitTick(TICK_INT_PRIORITY); // Reset HAL_GetTick() to 0
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
@@ -232,6 +287,59 @@ int main(void)
   {
     /* USER CODE END WHILE */
 	//  __LED_TIMER_Run(bright);
+	    switch (state)
+	    {
+	      case IDLE:
+	        if (button_interrupt == 1 && BUTTON_STATE == 0)
+	        {
+	          state = WAIT_PRESS_TIMEOUT;
+	          t_timeout = HAL_GetTick() + 50;
+	        }
+	        break;
+
+	      case WAIT_PRESS_TIMEOUT:
+	        if (BUTTON_STATE == 0 && HAL_GetTick() > t_timeout)
+	        {
+	          state = WAIT_CLICK_TIMEOUT;
+	          t_timeout = HAL_GetTick() + 250;
+	        }
+	        if (BUTTON_STATE == 1 && HAL_GetTick() <= t_timeout)
+	        {
+	          state = IDLE;
+	          button_interrupt = 0;
+	        }
+	        break;
+
+	      case WAIT_CLICK_TIMEOUT:
+	        if (BUTTON_STATE == 1 && HAL_GetTick() <= t_timeout)
+	        {
+	          add_pointer_value = add_pointer_value + 3;
+	          if (add_pointer_value > 36) add_pointer_value = 0;
+	          __RGB_Color(COLOR_TABLE + add_pointer_value);
+	          state = IDLE;
+	          button_interrupt = 0;
+	        }
+
+	        if (BUTTON_STATE == 0 && HAL_GetTick() > t_timeout)
+	        {
+	          state = WAIT_HOLD_TIMEOUT;
+	          t_timeout = HAL_GetTick() + 2700;
+	        }
+	        break;
+
+	      case WAIT_HOLD_TIMEOUT:
+	        if (BUTTON_STATE == 0 && HAL_GetTick() > t_timeout)
+	        {
+	          state = IDLE;
+	          button_interrupt = 0;
+	        }
+	        break;
+
+	      default:
+	          state = IDLE;
+	          break;
+	    }
+
 
     /* USER CODE BEGIN 3 */
   }
@@ -526,7 +634,7 @@ static void MX_GPIO_Init(void)
 /* USER CODE BEGIN 4 */
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
-	bright = bright - 5;
+	button_interrupt = 1;
 }
 /* USER CODE END 4 */
 
