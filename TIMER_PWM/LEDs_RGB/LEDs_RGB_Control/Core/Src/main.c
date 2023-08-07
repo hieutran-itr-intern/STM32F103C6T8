@@ -114,10 +114,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	{
 		if (di_LED == 0)
 		{
-			//Set PWM for each R,G,B
-			__HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_4, bright_count_R);  //Red
-			__HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_3, bright_count_G);  //Green
-			__HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, bright_count_B);  //Blue
+			i_LED++;
+			__HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, i_LED*79/99);
 			if (i_LED > bright_count_R) di_LED = 1;
 		}
 
