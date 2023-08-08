@@ -21,7 +21,8 @@
 #include "main.h"
 #include "uart.h"
 #include "flash.h"
-
+#include "fota.h"
+#include "circular_buffer.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 
@@ -61,7 +62,7 @@ static void MX_USART1_UART_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-char rx_data;
+
 uart_status status = UART_ERROR;
 uint8_t frame_data[127];
 
@@ -76,8 +77,21 @@ uint8_t *p_buffer_for_user;
 
 __IO uint32_t num_received_chars;
 
+hexa_struct data_frame;
+
+uint8_t buffer[128];
+
+cbuffer_t cb;
+
 void start_reception(void);
 
+uint8_t frame_rx_data[128];
+
+uint16_t high_address = 0x0800;
+
+uint32_t full_address;
+
+uint8_t last_checksum = 0x00;
 /* USER CODE END 0 */
 
 /**
@@ -112,16 +126,52 @@ int main(void)
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
   uart_transmit_string((uint8_t*)"Hello\n\r");
+  cb_init(&cb, buffer, 128);
+
 
   start_reception();
   /* USER CODE END 2 */
-
+  //flash_erase(0x08004000);
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    /* USER CODE END WHILE */
+	cb_read(&cb, frame_rx_data, cb_data_count(&cb));
 
+    /* USER CODE END WHILE */
+		data_frame.start_code = *frame_rx_data;
+
+		data_frame.byte_count = *(frame_rx_data + 1);
+
+		data_frame.address = ((*(frame_rx_data + 2) << 8) & 0xFF00) | (*(frame_rx_data + 3) & 0x00FF);
+
+		data_frame.record_type = *(frame_rx_data + 4);
+
+		if (data_frame.record_type == RECORD_DATA)
+		{
+			for (uint8_t i = 0; i < data_frame.byte_count; i++)
+			{
+				data_frame.data[i] = *(frame_rx_data + 5 + i);
+			}
+
+			data_frame.checksum = *(frame_rx_data + (uint32_t)(data_frame.byte_count + 5));
+
+			full_address = (uint32_t)(((high_address << 16) & 0xFFFF0000) | ( data_frame.address & 0x0000FFFF));
+
+			if (last_checksum != data_frame.checksum)
+			{
+				flash_write(full_address, (uint32_t*)data_frame.data, (data_frame.byte_count/4));
+				last_checksum = data_frame.checksum;
+			}
+
+		}
+		else if (data_frame.record_type == RECORD_EX_LIR_ADDRESS)
+		{
+			high_address = ((*(frame_rx_data + 5) << 8) & 0xFF00) | (*(frame_rx_data + 6));
+			data_frame.checksum = *(frame_rx_data + 7);
+		}
+
+		last_checksum = data_frame.checksum;
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
@@ -257,6 +307,8 @@ void user_data_treatment(UART_HandleTypeDef *huart, uint8_t *p_data, uint16_t si
 {
   uint8_t *p_buff = p_data;
   uint8_t i;
+
+  cb_write(&cb, p_data, size);
 
   for (i = 0; i < size; i++)
   {

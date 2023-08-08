@@ -2,6 +2,7 @@
     "files.associations": {
         "main.h": "c",
         "stdint.h": "c",
-        "stm32f1xx_hal.h": "c"
+        "stm32f1xx_hal.h": "c",
+        "fota.h": "c"
     }
 }

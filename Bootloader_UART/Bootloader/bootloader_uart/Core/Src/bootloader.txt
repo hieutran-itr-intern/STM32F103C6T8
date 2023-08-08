@@ -22,9 +22,9 @@ typedef struct
 	uint8_t add_write_byte_2;
 	uint8_t add_write_byte_1;
 	uint8_t length_write;
+	uint8_t write_data[118];
 	uint8_t crc_high; /* high -> low */
 	uint8_t crc_low;
-	uint8_t write_data[118];
 
 } write_command;
 
@@ -32,14 +32,17 @@ typedef struct
 {
 	uint8_t length_cm;
 	uint8_t command;
-	uint8_t crc_high; /* high -> low */
-	uint8_t crc_low;
 	uint8_t add_erase_byte_4;
 	uint8_t add_erase_byte_3;
 	uint8_t add_erase_byte_2;
 	uint8_t add_erase_byte_1;
+	uint8_t crc_high; /* high -> low */
+	uint8_t crc_low;
 
 } erase_command;
+
+write_command write;
+erase_command erase;
 
 /**
  * @brief Handle command from data frame received from host
@@ -49,8 +52,6 @@ bootloader_status bootloader_handle(uint8_t *data_frame)
 	bootloader_status status = BOOTLOADER_OK;
 
 	/* Init frame command */
-	write_command write;
-	erase_command erase;
 
 	/* Check length data_frame and only handle data in range 0 --> length - 1*/
 	uint8_t length_frame = 0x00u;
@@ -107,11 +108,22 @@ bootloader_status bootloader_handle(uint8_t *data_frame)
 
 		/* Check CRC */
 
+		/* If check crc ok, handle command*/
+		switch (type_command)
+		{
+			/*case ERASE_MEMORY:*/
+				/*uint32_t address_erase = (erase.add_erase_byte_4&0xF000) | (erase.add_erase_byte_3&0x0F00) |
+										(erase.add_erase_byte_2&0x00F0) | (erase.add_erase_byte_1&0x000F);
+				flash_erase(address_erase);*/
+
+		}
+
+
 
 	}
 }
 
-uint16_t CRC16_Caculation(uint8_t Num) //Ham CRC 16
+uint16_t CRC16_Caculation(uint8_t Num, uint8_t *data) //Ham CRC 16
  {
     uint8_t x,y,i; uint16_t Crc; //Bien Cuc Bo
 
@@ -119,10 +131,10 @@ uint16_t CRC16_Caculation(uint8_t Num) //Ham CRC 16
 
     for(x=0;x<Num;++x) //Lap Vong
     {
-       y=Prepare_data_send[x]; //Lay Byte Trong Bo Dem CRC 16
-       Crc=Crc^y; //Calculate the CRC
+       y = data[x]; //Lay Byte Trong Bo Dem CRC 16
+       Crc = Crc^y; //Calculate the CRC
 
-       for(i=8;i!=0;--i) //Shift Right
+       for(i = 8; i != 0; --i) //Shift Right
        {
           if((Crc&0x0001)!=0) //If the LSB is set
           {
